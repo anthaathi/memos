@@ -363,7 +363,7 @@ jobs:
           if [ "${{ needs.prepare.outputs.is_prerelease }}" = "true" ]; then
             docker buildx imagetools create \
               -t "${image}:${version}" \
-              $(printf '%s@sha256:%s ' "$image" *)
+              $(printf "${image}@sha256:%s " *)
             exit 0
           fi
 
@@ -371,7 +371,7 @@ jobs:
             -t "${image}:${version}" \
             -t "${image}:${{ needs.prepare.outputs.major_minor }}" \
             -t "${image}:stable" \
-            $(printf '%s@sha256:%s ' "$image" *)
+            $(printf "${image}@sha256:%s " *)
 
       - name: Inspect images
         run: |
