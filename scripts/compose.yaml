@@ -1,6 +1,8 @@
 services:
   memos:
-    image: neosmemo/memos:stable
+    # Image is configurable so any Memos registry works without editing this
+    # file; defaults to the upstream GHCR mirror of the stable release.
+    image: ${MEMOS_IMAGE:-ghcr.io/usememos/memos:stable}
     container_name: memos
     volumes:
       - ~/.memos/:/var/opt/memos

@@ -12,6 +12,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 candidate_image="${MEMOS_SMOKE_CANDIDATE_IMAGE:-}"
 previous_image="${MEMOS_SMOKE_PREVIOUS_IMAGE:-}"
+# Registry hosting the historical release images the upgrade test seeds from.
+# Defaults to the upstream GHCR mirror; override for a registry carrying the
+# same release tags (e.g. a fork mirror).
+previous_repo="${MEMOS_PREVIOUS_IMAGE_REPO:-ghcr.io/usememos/memos}"
 keep_resources="${MEMOS_SMOKE_KEEP_RESOURCES:-0}"
 
 usage() {
@@ -32,12 +36,13 @@ Environment equivalents:
   MEMOS_SMOKE_CANDIDATE_IMAGE
   MEMOS_SMOKE_PREVIOUS_IMAGE
   MEMOS_SMOKE_KEEP_RESOURCES=1
+  MEMOS_PREVIOUS_IMAGE_REPO (default ghcr.io/usememos/memos)
 
 Examples:
   ./scripts/release_smoke_test.sh
   ./scripts/release_smoke_test.sh \
     --candidate-image memos-smoke:local \
-    --previous-image neosmemo/memos:0.29.1
+    --previous-image ghcr.io/usememos/memos:0.29.1
 EOF
 }
 
@@ -155,12 +160,15 @@ detect_previous_image() {
       continue
     fi
     if git -C "$REPO_ROOT" merge-base --is-ancestor "$tag" HEAD; then
-      printf 'neosmemo/memos:%s\n' "${tag#v}"
+      printf '%s:%s\n' "$previous_repo" "${tag#v}"
       return
     fi
   done < <(git -C "$REPO_ROOT" tag --list 'v[0-9]*' --sort=-version:refname)
 
-  die "could not detect a previous stable release; pass --previous-image"
+  # No previous release tag reachable from HEAD (e.g. the first release on a
+  # fork that did not inherit tags). Signal the caller to skip the upgrade
+  # tier rather than failing the release.
+  return 1
 }
 
 build_local_candidate() {
@@ -317,14 +325,24 @@ else
   ensure_image "$candidate_image"
 fi
 
+run_upgrade_smoke=1
 if [[ -z "$previous_image" ]]; then
-  previous_image="$(detect_previous_image)"
+  if ! previous_image="$(detect_previous_image)"; then
+    run_upgrade_smoke=0
+  fi
 fi
-ensure_image "$previous_image"
-[[ "$candidate_image" != "$previous_image" ]] || die "candidate and previous images must be different"
+
+if ((run_upgrade_smoke)); then
+  ensure_image "$previous_image"
+  [[ "$candidate_image" != "$previous_image" ]] || die "candidate and previous images must be different"
+fi
 
 log "Candidate image: $candidate_image"
-log "Previous image:  $previous_image"
+if ((run_upgrade_smoke)); then
+  log "Previous image:  $previous_image"
+else
+  log "Previous image:  none detected (first release on this history); skipping upgrade smoke test"
+fi
 
 log "Running fresh-install smoke test"
 docker volume create "$fresh_volume" >/dev/null
@@ -341,19 +359,21 @@ fresh_token="$(sign_in)"
 assert_memo "$fresh_token" "release-smoke" "fresh install smoke sentinel"
 docker rm -f "$fresh_container" >/dev/null
 
-log "Running $previous_image to $candidate_image upgrade smoke test"
-docker volume create "$upgrade_volume" >/dev/null
-start_container "$upgrade_old_container" "$previous_image" "$upgrade_volume"
-create_admin
-upgrade_token="$(sign_in)"
-create_memo "$upgrade_token" "pre-upgrade-smoke" "created before release upgrade"
-docker rm -f "$upgrade_old_container" >/dev/null
+if ((run_upgrade_smoke)); then
+  log "Running $previous_image to $candidate_image upgrade smoke test"
+  docker volume create "$upgrade_volume" >/dev/null
+  start_container "$upgrade_old_container" "$previous_image" "$upgrade_volume"
+  create_admin
+  upgrade_token="$(sign_in)"
+  create_memo "$upgrade_token" "pre-upgrade-smoke" "created before release upgrade"
+  docker rm -f "$upgrade_old_container" >/dev/null
 
-start_container "$upgrade_new_container" "$candidate_image" "$upgrade_volume"
-assert_frontend_assets
-upgrade_token="$(sign_in)"
-assert_memo "$upgrade_token" "pre-upgrade-smoke" "created before release upgrade"
-create_memo "$upgrade_token" "post-upgrade-smoke" "created after release upgrade"
-assert_memo "$upgrade_token" "post-upgrade-smoke" "created after release upgrade"
+  start_container "$upgrade_new_container" "$candidate_image" "$upgrade_volume"
+  assert_frontend_assets
+  upgrade_token="$(sign_in)"
+  assert_memo "$upgrade_token" "pre-upgrade-smoke" "created before release upgrade"
+  create_memo "$upgrade_token" "post-upgrade-smoke" "created after release upgrade"
+  assert_memo "$upgrade_token" "post-upgrade-smoke" "created after release upgrade"
+fi
 
 log "Release smoke tests passed"

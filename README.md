@@ -10,7 +10,7 @@ Memos is an open-source, self-hosted note-taking app built for quick capture. It
 [![Live Demo](https://img.shields.io/badge/✨-Try%20Demo-orange?style=flat-square)](https://demo.usememos.com/)
 [![Docs](https://img.shields.io/badge/📚-Documentation-green?style=flat-square)](https://usememos.com/docs)
 [![Discord](https://img.shields.io/badge/💬-Discord-5865f2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/tfPJa4UmAv)
-[![Docker Pulls](https://img.shields.io/docker/pulls/neosmemo/memos?style=flat-square&logo=docker)](https://hub.docker.com/r/neosmemo/memos)
+[![Docker Image](https://img.shields.io/badge/ghcr.io-anthaathi%2Fmemos-2496ED?style=flat-square&logo=github&logoColor=white)](https://github.com/anthaathi/memos/pkgs/container/memos)
 
 <img src="https://raw.githubusercontent.com/usememos/.github/refs/heads/main/assets/demo.png" alt="Memos Demo Screenshot" height="512" />
 
@@ -32,7 +32,7 @@ docker run -d \
   --name memos \
   -p 5230:5230 \
   -v ~/.memos:/var/opt/memos \
-  neosmemo/memos:stable
+  ghcr.io/anthaathi/memos:stable
 ```
 
 Open `http://localhost:5230` and start writing.

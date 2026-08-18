@@ -30,10 +30,8 @@ const (
 	testUser     = "root"
 	testPassword = "test"
 
-	// Memos container settings for migration testing.
-	MemosDockerImage = "neosmemo/memos"
 	// StableMemosVersion is the previous stable release upgrades are tested from.
-	// Pinned rather than tracking the floating "stable" tag so a Docker Hub retag
+	// Pinned rather than tracking the floating "stable" tag so a registry retag
 	// cannot change what CI verifies. Bump this when a new stable ships.
 	// scripts/release_smoke_test.sh detects the previous release from Git tags
 	// instead, so the black-box tier still follows "stable" automatically.
@@ -42,6 +40,17 @@ const (
 	mysqlNetworkAlias    = "memos-mysql"
 	postgresNetworkAlias = "memos-postgres"
 )
+
+// MemosDockerImage is the registry hosting the historical Memos release images
+// used as fixtures by the migration tests. Historical releases are mirrored on
+// the upstream GHCR registry. Set MEMOS_TEST_IMAGE_REPO to point the tests at
+// another registry carrying the same release tags (e.g. a fork mirror).
+var MemosDockerImage = func() string {
+	if repo := os.Getenv("MEMOS_TEST_IMAGE_REPO"); repo != "" {
+		return repo
+	}
+	return "ghcr.io/usememos/memos"
+}()
 
 var (
 	mysqlContainer    atomic.Pointer[mysql.MySQLContainer]
