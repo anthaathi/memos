@@ -15,6 +15,7 @@ interface UseMemoSaveOptions {
   parentMemoName?: string;
   defaultVisibility?: Visibility;
   defaultCreateTime?: Date;
+  defaultFolderName?: string;
   discardDraft: () => void;
   onConfirm?: (memoName: string) => void;
   onCancel?: () => void;
@@ -30,6 +31,7 @@ export function useMemoSave({
   parentMemoName,
   defaultVisibility,
   defaultCreateTime,
+  defaultFolderName,
   discardDraft,
   onConfirm,
   onCancel,
@@ -50,7 +52,7 @@ export function useMemoSave({
     dispatch(actions.setLoading("saving", true));
 
     try {
-      const result = await memoService.save(state, { memoName, parentMemoName });
+      const result = await memoService.save(state, { memoName, parentMemoName, folderName: defaultFolderName });
 
       if (!result.hasChanges) {
         toast.error(t("editor.no-changes-detected"));
@@ -98,6 +100,7 @@ export function useMemoSave({
   }, [
     actions,
     defaultCreateTime,
+    defaultFolderName,
     defaultVisibility,
     discardDraft,
     dispatch,

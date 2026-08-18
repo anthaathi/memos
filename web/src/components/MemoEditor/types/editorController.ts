@@ -1,10 +1,10 @@
-import type { UploadAnchorDescriptor } from "../Editor/uploadAnchors";
 import type { ActiveFormatState, EditorCommandContext, EditorCommandId } from "../formatting/commands";
+import type { UploadAnchorDescriptor } from "./uploadAnchor";
 
 /**
  * The contract the memo editor (Editor) implements. Everything outside the
  * editor implementation talks markdown through this interface and never reaches
- * for the editor's internal CodeMirror/DOM APIs.
+ * for the editor's internal Lexical/DOM APIs.
  */
 export interface EditorController {
   focus(): void;

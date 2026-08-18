@@ -2,7 +2,7 @@
 
 ## Overview
 
-MemoEditor is a three-layer component. At its core is a single editor — `Editor/`, a CodeMirror 6 "decorated source" editor. It stores the memo as **raw markdown, verbatim** (no parse/serialize round-trip) and styles that source in place with CodeMirror decorations: the markers (`#`, `*`, `` ` ``, list bullets, fences) stay visible but de-emphasized while the styled text leads. There is one editor and one storage format; everything above the editor boundary talks markdown through the `EditorController` contract.
+MemoEditor is a three-layer component. At its core is a single editor — `Editor/`, a Lexical rich-text editor. The memo stays **markdown** end to end: `setMarkdown` parses it into the editor's node tree, every change serializes the tree back to markdown, and `state.content` holds exactly that string. Constructs the editor has no rich node for (pipe tables, `$$` math blocks, block HTML) are preserved **verbatim** inside raw-markdown blocks, so editing a memo never rewrites them. Everything above the editor boundary talks markdown through the `EditorController` contract.
 
 ## Architecture
 
@@ -38,22 +38,29 @@ MemoEditor/
 ├── hooks/                  # React hooks (utilities)
 │   ├── useMemoSave.ts      # Save transaction, cache invalidation, and reset
 │   └── useFocusMode.ts     # Scroll lock and layout-stable focus presentation
-├── Editor/           # The CodeMirror 6 decorated-source editor
-│   ├── index.tsx               # React wrapper: mounts the EditorView, owns the
-│   │                           #   controller refs, syncs initialContent in/out
-│   ├── extensions.ts           # buildEditorExtensions(): assembles the CM extension set
-│   ├── theme.ts                # Syntax-highlight style + editor theme (CSS-var colors)
-│   ├── tagMentionDecorations.ts# ViewPlugin that decorates #tag / @mention spans
-│   ├── markdownTagRanges.ts    # Markdown syntax-tree adapter for the shared tag scanner
-│   ├── tagAutocomplete.ts      # CM autocompletion source for #tag
-│   ├── formatting.ts           # FormattingController impl (toggle marks, headings, lists)
-│   └── controller.ts           # EditorController impl over an EditorView
+├── Editor/                 # The Lexical rich-text editor
+│   ├── index.tsx           # React shell: LexicalComposer, plugin wiring,
+│   │                       #   external-content sync, IME deferral, controller ref
+│   ├── markdown.ts         # Markdown ⇄ Lexical: transformer set, raw-block
+│   │                       #   segmentation, list-indent normalization, export cache
+│   ├── controller.ts       # EditorController impl over a Lexical editor
+│   ├── formatting.ts       # FormattingController impl (catalog verbs → commands)
+│   ├── plugins.tsx         # Behavior registrations: rich text, lists, checklists,
+│   │                       #   history, markdown shortcuts, file paste/drop,
+│   │                       #   Cmd/Ctrl+Enter submit, Tab nesting, Escape blur
+│   ├── tagStyling.ts       # #tag/@mention in-place highlighting transforms
+│   ├── tagAutocomplete.tsx # #tag typeahead menu + pure ranking grammar
+│   ├── theme.ts            # Lexical theme class map (CSS-var styled in editor.css)
+│   ├── nodes.ts            # Node registry for the composer
+│   └── nodes/              # Custom nodes: RawMarkdown, MarkdownImage,
+│                           #   UploadAnchor, Tag, Mention
 ├── formatting/
 │   └── commands.ts         # Backend-agnostic catalog of formatting verbs
 ├── Toolbar/                # Toolbar sub-components (InsertMenu, VisibilitySelector)
 ├── constants.ts
 └── types/
-    └── editorController.ts # EditorController / FormattingController interfaces
+    ├── editorController.ts # EditorController / FormattingController interfaces
+    └── uploadAnchor.ts     # UploadAnchorDescriptor (editor-agnostic)
 ```
 
 ## Key Concepts
@@ -62,45 +69,35 @@ MemoEditor/
 
 Uses `useReducer` + Context for predictable state transitions. All state changes go through action creators.
 
-`state.content` holds the document as a **markdown string** and is the single source of truth. Because the editor stores markdown verbatim, `state.content` is exactly the editor's document — there is no encoding or normalization step.
+`state.content` holds the document as a **markdown string** and is the single source of truth. The editor serializes into it on every change (see `Editor/markdown.ts` for the round-trip rules); applying external content (`setMarkdown`) parses the string back into the editor.
 
 ### The editor contract
 
-`types/editorController.ts` defines `EditorController` — `focus`, `getMarkdown`, `setMarkdown`, `insertMarkdown`, `selectAll`, `scrollToCursor`, plus an optional `formatting` capability. Callers outside the editor implementation use this interface exclusively and never reach into CodeMirror internals.
+`types/editorController.ts` defines `EditorController` — `focus`, `hasFocus`, `isEmpty`, `getMarkdown`, `setMarkdown`, `insertMarkdown`, upload-anchor lifecycle, `getCursor`/`setCursor`, `scrollToCursor`, `selectAll`, plus a `formatting` capability. Callers outside the editor implementation use this interface exclusively and never reach into Lexical internals.
 
-`Editor/controller.ts` implements `EditorController` over a CodeMirror `EditorView`: `getMarkdown` is just `view.state.doc.toString()`, `setMarkdown` replaces the whole document, and `insertMarkdown` block-pads the insertion so it lands as its own block.
+`Editor/controller.ts` implements it over a `LexicalEditor`. `getMarkdown` serializes the current editor state (cached per state); `setMarkdown` replaces the whole tree; `insertMarkdown` splits the caret's block so the new markdown lands as its own block without consuming the selection. Cursor offsets are plain-text projection offsets (blocks joined by newlines), good enough to restore a draft caret.
 
-`FormattingController` (same file in `types/`) is the rich-formatting surface the focus-mode `FormattingToolbar` drives: `run(commandId, ctx?)`, `getActiveFormats()`, `getSelectedText()`, and `subscribe(listener)`. `Editor/formatting.ts` implements it by editing the markdown source directly — toggling inline marks (`**`/`*`/`` ` ``), line prefixes (`- `, `1. `, `- [ ] `), and ATX heading prefixes (`#`…) — and by reading active state from the Lezer syntax tree at the caret.
+### The markdown round-trip (`Editor/markdown.ts`)
 
-### Formatting command catalog
+- Import: the document is first segmented — pipe tables, `$$` math blocks, and block HTML become `RawMarkdownNode` blocks that keep their source verbatim; everything else parses through Lexical's markdown transformers (plus custom image, horizontal-rule, and checklist transformers). Single newlines stay line breaks (matching `remark-breaks` rendering), and compact list nesting (2/3-space, as written by the previous editor) is normalized to Lexical's 4-space levels on the way in.
+- Export: the tree serializes back with the same transformers; lists re-indent to CommonMark content columns so rendered nesting matches the editor's; raw blocks emit their source byte-for-byte. Escaping of emphasis characters is Lexical's (stable across re-imports).
+- Known limitation: nesting a list of a *different* type under a checklist or ordered item (e.g. a bullet under `- [ ]`) is restructured by Lexical's list transforms; the round-trip keeps it renderable (loose list) but may rewrite the spacing.
 
-`formatting/commands.ts` is the single, editor-agnostic catalog of formatting verbs (`EDITOR_COMMANDS`, `EditorCommandId`, `ActiveFormatState`, `isCommandActive`). It is metadata only — labels (i18n keys), icons, and grouping — with no dependency on any concrete editor. The toolbar and the active-state highlighting derive everything from this catalog; `Editor/formatting.ts` supplies how each verb is applied to the live CodeMirror document. To add a verb, add one entry here (and its field on `ActiveFormatState`).
+### The formatting catalog
 
-### Editor extensions
+`formatting/commands.ts` is the single, editor-agnostic catalog of formatting verbs (`EDITOR_COMMANDS`, `EditorCommandId`, `ActiveFormatState`, `isCommandActive`). It is metadata only — labels (i18n keys), icons, and grouping — with no dependency on any concrete editor. The toolbar and the active-state highlighting derive everything from this catalog; `Editor/formatting.ts` supplies how each verb is applied to the live Lexical document. To add a verb, add one entry here (and its field on `ActiveFormatState`).
 
-`Editor/extensions.ts` exports `buildEditorExtensions()`, which composes the CodeMirror extension set: `@codemirror/lang-markdown` (with GFM), line wrapping, a reconfigurable placeholder, the editor theme, the `#tag`/`@mention` decoration plugin, the `#tag` autocomplete, and an update listener that pushes document changes back to the reducer via `onChange`. Native CodeMirror paste/drop handlers intercept file payloads before its text insertion behavior and pass them to the attachment layer; ordinary markdown text paste/drop remains CodeMirror-owned.
+### The editor shell
 
-`Editor/theme.ts` defines the decorated-source look: a `HighlightStyle` over the Lezer markdown highlight tags (headings, strong, emphasis, code, links, quotes, markers) and an `EditorView.theme`. Colors come from CSS custom properties so light/dark themes just work. This is the editor's own styling — the read-only memo view styles itself separately via `@/lib/markdownStyles`.
+`Editor/plugins.tsx` registers the editor's behavior: rich-text and list handling (checklists render as checkboxes), undo history, markdown shortcuts while typing (`# `, `- `, `> `, fences, `**`), the `#tag`/`@mention` styling transforms, file paste/drop interception (files go to the attachment layer; text paste remains editor-owned), the Cmd/Ctrl+Enter save shortcut, Tab/Shift-Tab list nesting (two-space indent elsewhere), and Escape-to-blur. `Editor/index.tsx` owns the React shell: it seeds content once, applies external content when `contentIsExternal` (deferring through IME compositions), exposes the controller ref, and renders the placeholder.
 
-### Tags and mentions
+### Upload anchors
 
-`#tag` autocomplete, decoration, and read-only rendering all use the shared scanner in `@/utils/tag-grammar`. The scanner owns tag syntax and Unicode/emoji recognition; each surface supplies only its Markdown context:
-
-- `Editor/markdownTagRanges.ts` adapts the CodeMirror syntax tree into literal-source ranges, excluding links, code, math, raw HTML syntax, escapes, and entities before calling the shared scanner.
-- `Editor/tagMentionDecorations.ts` decorates the tag matches returned by that adapter; mention recognition remains separate.
-- `Editor/tagAutocomplete.ts` reuses the same adapter for the tag ending at the cursor and offers known tags from `useTagCounts`.
-- `@/utils/remark-plugins/remark-tag` is the read-only renderer's Markdown AST adapter to the same scanner.
-
-### Services
-
-Pure TypeScript functions containing business logic. No React hooks, easy to test.
+Inline image uploads render a block chip (`nodes/UploadAnchorNode.tsx`) while in flight. The controller maps chips by id: `createUploadAnchor` inserts one at the caret, `updateUploadAnchor` re-renders it with fresh progress/labels, `resolveUploadAnchor` replaces it with the uploaded image markdown, and `cancelUploadAnchor` removes it. Chips never serialize into markdown.
 
 ### Lifecycle hooks
 
-Cross-cutting React workflows stay outside the editor shell. `useMemoSave`
-coordinates validation, persistence, query invalidation, and post-save reducer
-state. `useFocusMode` owns focus mode's DOM lifecycle, including restoring the
-previous body scroll style and preserving the editor's place in grid layouts.
+Cross-cutting React workflows stay outside the editor shell. `useMemoSave` coordinates validation, persistence, query invalidation, and post-save reducer state. `useFocusMode` owns focus mode's DOM lifecycle, including restoring the editor's place in grid layouts.
 
 ### Components
 
@@ -120,7 +117,7 @@ import MemoEditor from "@/components/MemoEditor";
 
 ## Testing
 
-Services are pure functions — easy to unit test without React.
+Services are pure functions — easy to unit test without React. The editor layers have focused suites: `tests/editor-markdown.test.ts` (segmentation + round-trip), `tests/editor-controller.test.ts`, `tests/editor-formatting.test.ts`, `tests/editor-keys.test.tsx`, `tests/editor-tag-*.test.ts`, `tests/editor-upload-anchor.test.tsx`, and `tests/editor.test.tsx` (component shell). The `tests/helpers/` harnesses build a fully-wired editor without mounting React.
 
 ```typescript
 const state = mockEditorState();

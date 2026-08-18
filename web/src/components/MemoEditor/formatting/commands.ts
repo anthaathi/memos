@@ -110,6 +110,12 @@ export const EDITOR_COMMANDS: EditorCommand[] = [
     group: "mark",
   },
   {
+    id: "code",
+    labelKey: "editor.format.code",
+    icon: CodeIcon,
+    group: "mark",
+  },
+  {
     id: "bulletList",
     labelKey: "editor.format.bullet-list",
     icon: ListIcon,

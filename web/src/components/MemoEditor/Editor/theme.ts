@@ -1,23 +1,43 @@
-import { syntaxHighlighting } from "@codemirror/language";
-import { tags as t, tagHighlighter } from "@lezer/highlight";
+import type { EditorThemeClasses } from "lexical";
 
 /**
- * Map markdown syntax tokens to stable class names. ALL visual styling lives in
- * plain CSS (the `.memo-editor-content` block in `Editor/editor.css`) so the editor
- * is themed like the rest of the app — Tailwind/theme tokens in a stylesheet —
- * rather than a CodeMirror CSS-in-JS theme object. Headings (`.cm-md-h*`) and
- * `#tag`/`@mention` (`.cm-memo-*`) classes come from the decoration plugins;
- * the rest of the `.cm-*` chrome is CodeMirror's own and is styled in that CSS.
+ * Lexical theme: node types map to the stable class names styled in
+ * `Editor/editor.css` (the `.memo-editor-content` block), so the editor is
+ * themed with the app's CSS custom properties like the rest of the UI.
  */
-const markdownHighlighter = tagHighlighter([
-  { tag: t.strong, class: "cm-md-strong" },
-  { tag: t.emphasis, class: "cm-md-emphasis" },
-  { tag: t.strikethrough, class: "cm-md-strike" },
-  { tag: t.monospace, class: "cm-md-code" },
-  { tag: t.link, class: "cm-md-link" },
-  { tag: t.url, class: "cm-md-url" },
-  { tag: t.quote, class: "cm-md-quote" },
-  { tag: [t.processingInstruction, t.meta, t.contentSeparator], class: "cm-md-mark" },
-]);
-
-export const memoEditorTheme = [syntaxHighlighting(markdownHighlighter)];
+export const memoEditorTheme: EditorThemeClasses = {
+  root: "memo-editor-root",
+  paragraph: "memo-editor-paragraph",
+  heading: {
+    h1: "memo-editor-heading memo-editor-heading-1",
+    h2: "memo-editor-heading memo-editor-heading-2",
+    h3: "memo-editor-heading memo-editor-heading-3",
+    h4: "memo-editor-heading memo-editor-heading-4",
+    h5: "memo-editor-heading memo-editor-heading-5",
+    h6: "memo-editor-heading memo-editor-heading-6",
+  },
+  text: {
+    bold: "memo-editor-text-bold",
+    italic: "memo-editor-text-italic",
+    strikethrough: "memo-editor-text-strike",
+    code: "memo-editor-text-code",
+    underline: "memo-editor-text-underline",
+  },
+  quote: "memo-editor-quote",
+  list: {
+    ul: "memo-editor-list-ul",
+    ol: "memo-editor-list-ol",
+    checklist: "memo-editor-list-checklist",
+    listitem: "memo-editor-list-item",
+    listitemChecked: "memo-editor-list-item-checked",
+    listitemUnchecked: "memo-editor-list-item-unchecked",
+    nested: {
+      list: "memo-editor-nested-list",
+      listitem: "memo-editor-nested-list-item",
+    },
+  },
+  code: "memo-editor-code",
+  hr: "memo-editor-hr",
+  image: "memo-editor-image",
+  link: "memo-editor-link",
+};

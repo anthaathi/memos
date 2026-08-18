@@ -23,6 +23,11 @@ export interface MemoEditorProps {
    * in edit mode (when `memo` is set).
    */
   defaultCreateTime?: Date;
+  /**
+   * Folder resource name assigned to memos created from this editor
+   * (create mode only). Ignored in edit mode.
+   */
+  defaultFolderName?: string;
   onConfirm?: (memoName: string) => void;
   onCancel?: () => void;
 }

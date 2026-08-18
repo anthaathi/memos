@@ -2,7 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren, RefObject } from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import type { UploadAnchorDescriptor } from "@/components/MemoEditor/Editor/uploadAnchors";
+import type { UploadAnchorDescriptor } from "@/components/MemoEditor/types/uploadAnchor";
 import { useInlineImageUpload } from "@/components/MemoEditor/hooks/useInlineImageUpload";
 import { uploadService } from "@/components/MemoEditor/services";
 import { EditorProvider, useEditorContext } from "@/components/MemoEditor/state";

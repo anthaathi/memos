@@ -43,6 +43,7 @@ const MemoEditorImpl: React.FC<MemoEditorProps> = ({
   onFocusModeExit,
   placeholder,
   defaultCreateTime,
+  defaultFolderName,
   onConfirm,
   onCancel,
 }) => {
@@ -267,6 +268,7 @@ const MemoEditorImpl: React.FC<MemoEditorProps> = ({
     parentMemoName,
     defaultVisibility,
     defaultCreateTime,
+    defaultFolderName,
     discardDraft,
     onConfirm,
     onCancel: onCancel ? handleCancel : undefined,

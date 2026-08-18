@@ -79,6 +79,8 @@ export const memoService = {
     options: {
       memoName?: string;
       parentMemoName?: string;
+      /** Folder resource name for newly created memos. */
+      folderName?: string;
     },
   ): Promise<{ memoName: string; hasChanges: boolean }> {
     // 1. Upload local files first
@@ -108,6 +110,8 @@ export const memoService = {
       attachments: toAttachmentReferences(allAttachments),
       relations: state.metadata.relations,
       location: state.metadata.location,
+      // Comments are never filed into folders.
+      folder: !options.parentMemoName ? options.folderName : undefined,
       createTime: state.timestamps.createTime ? timestampFromDate(state.timestamps.createTime) : undefined,
       updateTime: state.timestamps.updateTime ? timestampFromDate(state.timestamps.updateTime) : undefined,
     });

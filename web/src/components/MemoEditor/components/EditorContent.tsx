@@ -6,11 +6,11 @@ import type { EditorController } from "../types/editorController";
 
 // Imported eagerly (not React.lazy): the editor is the always-present compose
 // box on the home route, which is already code-split — so deferring the
-// CodeMirror bundle separately bought nothing and made the editor paint empty
+// editor bundle separately bought nothing and made the editor paint empty
 // for a beat before its placeholder appeared (a visible flicker on load).
 
 /**
- * Hosts the CodeMirror Editor behind the EditorController contract. The
+ * Hosts the Lexical Editor behind the EditorController contract. The
  * editor serializes into state.content on every change and exposes its
  * formatting capability for the focus-mode toolbar.
  */

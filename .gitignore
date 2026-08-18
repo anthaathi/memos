@@ -9,6 +9,11 @@ build/
 bin/
 memos
 
+# Local development databases (sqlite driver default DSN)
+*.db
+*.db-shm
+*.db-wal
+
 .DS_Store
 
 # Jetbrains
