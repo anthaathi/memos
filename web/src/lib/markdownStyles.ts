@@ -33,8 +33,9 @@ const headingClasses: Record<HeadingLevel, string> = {
  * Single source of truth for the styling of common markdown elements rendered
  * by the read-only memo view (MemoContent). Each value is a complete, standalone
  * Tailwind class string so it can be dropped onto a DOM element as-is (MemoContent
- * merges them with `cn`). The editor does not use these — it styles its raw
- * markdown source via CodeMirror decorations in `MemoEditor/Editor/theme.ts`.
+ * merges them with `cn`). The editor does not use these — it styles its rich
+ * document via Lexical theme classes in `MemoEditor/Editor/theme.ts` and
+ * `MemoEditor/Editor/editor.css`.
  *
  * These are static string literals so Tailwind's JIT scanner detects them.
  */

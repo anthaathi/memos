@@ -1,6 +1,16 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@fontsource-variable/dm-sans";
+@import "@fontsource-variable/dm-sans/wght-italic.css";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/jetbrains-mono/wght-italic.css";
 @import "./themes/default.css";
+
+/* DM Sans (variable, self-hosted via Fontsource) is the site-wide UI font and
+   JetBrains Mono the code font. Both stacks live in themes/default.css on the
+   :root --font-sans / --font-mono variables, which every font-family reference
+   and Tailwind's default document fonts resolve through (the theme maps the
+   tokens to those runtime variables). */
 
 @layer base {
   * {
