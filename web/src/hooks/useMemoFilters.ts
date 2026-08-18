@@ -44,6 +44,10 @@ export interface UseMemoFiltersOptions {
   includeMemoViews?: boolean;
   includePinned?: boolean;
   visibilities?: Visibility[];
+  /** Folder UID to scope the feed to. */
+  folderUID?: string;
+  /** Only memos without a folder. */
+  ungroupedOnly?: boolean;
 }
 
 interface BuildMemoFilterOptions {
@@ -53,6 +57,8 @@ interface BuildMemoFilterOptions {
   includePinned: boolean;
   selectedMemoViewFilter?: string;
   visibilities?: Visibility[];
+  folderUID?: string;
+  ungroupedOnly?: boolean;
 }
 
 export const buildMemoFilter = ({
@@ -62,6 +68,8 @@ export const buildMemoFilter = ({
   includePinned,
   selectedMemoViewFilter,
   visibilities,
+  folderUID,
+  ungroupedOnly,
 }: BuildMemoFilterOptions): string | undefined => {
   const conditions: string[] = [];
 
@@ -108,11 +116,17 @@ export const buildMemoFilter = ({
     conditions.push(`visibility in [${visibilityValues}]`);
   }
 
+  if (folderUID) {
+    conditions.push(`folder_uid == ${escapeFilterValue(folderUID)}`);
+  } else if (ungroupedOnly) {
+    conditions.push(`folder_uid == ""`);
+  }
+
   return conditions.length > 0 ? conditions.join(" && ") : undefined;
 };
 
 export const useMemoFilters = (options: UseMemoFiltersOptions = {}): string | undefined => {
-  const { creatorName, includeMemoViews = false, includePinned = false, visibilities } = options;
+  const { creatorName, includeMemoViews = false, includePinned = false, visibilities, folderUID, ungroupedOnly } = options;
 
   const currentUser = useCurrentUser();
   const { data: memoViews = [] } = useMemoViews(includeMemoViews ? currentUser?.name : undefined);
@@ -133,7 +147,19 @@ export const useMemoFilters = (options: UseMemoFiltersOptions = {}): string | un
         includePinned,
         selectedMemoViewFilter,
         visibilities,
+        folderUID,
+        ungroupedOnly,
       }),
-    [creatorName, currentMemoView, filters, includePinned, includeMemoViews, selectedMemoViewFilter, visibilities],
+    [
+      creatorName,
+      currentMemoView,
+      filters,
+      includePinned,
+      includeMemoViews,
+      selectedMemoViewFilter,
+      visibilities,
+      folderUID,
+      ungroupedOnly,
+    ],
   );
 };

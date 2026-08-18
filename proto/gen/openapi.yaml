@@ -664,6 +664,7 @@ paths:
                        created_ts / updated_ts (timestamp), pinned (bool),
                        visibility (string: PRIVATE | PROTECTED | PUBLIC),
                        tags (list<string>; match with `"work" in tags`, not `tag == "work"`),
+                       folder_uid (string; UID of the memo's folder, empty for ungrouped memos),
                        has_task_list / has_link / has_code / has_incomplete_tasks (bool),
                        has_location (bool; true when the memo has a location attached).
                      Note: the time fields here are created_ts / updated_ts, which differ from
@@ -1490,6 +1491,173 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/User'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/users/{user}/folders:
+        get:
+            tags:
+                - FolderService
+            description: ListFolders returns a user's folders ordered by pinned first, then title.
+            operationId: FolderService_ListFolders
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListFoldersResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - FolderService
+            description: CreateFolder creates a new folder for a user.
+            operationId: FolderService_CreateFolder
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+                - name: validateOnly
+                  in: query
+                  description: Optional. If set, validate the request, but do not actually create the folder.
+                  schema:
+                    type: boolean
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Folder'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Folder'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/users/{user}/folders/{folder}:
+        get:
+            tags:
+                - FolderService
+            description: GetFolder gets a folder by name.
+            operationId: FolderService_GetFolder
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+                - name: folder
+                  in: path
+                  description: The folder id.
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Folder'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        delete:
+            tags:
+                - FolderService
+            description: |-
+                DeleteFolder deletes a folder for a user. Memos in the folder are not
+                 deleted; they become ungrouped.
+            operationId: FolderService_DeleteFolder
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+                - name: folder
+                  in: path
+                  description: The folder id.
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        patch:
+            tags:
+                - FolderService
+            description: UpdateFolder updates a folder for a user.
+            operationId: FolderService_UpdateFolder
+            parameters:
+                - name: user
+                  in: path
+                  description: The user id.
+                  required: true
+                  schema:
+                    type: string
+                - name: folder
+                  in: path
+                  description: The folder id.
+                  required: true
+                  schema:
+                    type: string
+                - name: updateMask
+                  in: query
+                  description: 'Optional. The list of fields to update. Supported paths: title, pinned.'
+                  schema:
+                    type: string
+                    format: field-mask
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Folder'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Folder'
                 default:
                     description: Default error response
                     content:
@@ -2696,6 +2864,39 @@ components:
                     type: string
                 avatarUrl:
                     type: string
+        Folder:
+            required:
+                - title
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: |-
+                        The resource name of the folder.
+                         Format: users/{user}/folders/{folder}
+                title:
+                    type: string
+                    description: Required. The title of the folder.
+                pinned:
+                    type: boolean
+                    description: Whether the folder is pinned to the top of the folder list.
+                createTime:
+                    readOnly: true
+                    type: string
+                    description: Output only. The creation timestamp.
+                    format: date-time
+                updateTime:
+                    readOnly: true
+                    type: string
+                    description: Output only. The last update timestamp.
+                    format: date-time
+                memoCount:
+                    readOnly: true
+                    type: integer
+                    description: |-
+                        Output only. The number of normal (non-archived, non-comment) memos in
+                         the folder.
+                    format: int32
         GeneralSetting_CustomProfile:
             type: object
             properties:
@@ -3094,6 +3295,20 @@ components:
                     description: |-
                         A token that can be sent as `page_token` to retrieve the next page.
                          If this field is omitted, there are no subsequent pages.
+        ListFoldersResponse:
+            type: object
+            properties:
+                folders:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Folder'
+                    description: The list of folders.
+                ungroupedMemoCount:
+                    type: integer
+                    description: |-
+                        The number of normal (non-archived, non-comment) memos that are not
+                         assigned to any folder.
+                    format: int32
         ListIdentityProvidersResponse:
             type: object
             properties:
@@ -3381,6 +3596,15 @@ components:
                     allOf:
                         - $ref: '#/components/schemas/Location'
                     description: Optional. The location of the memo.
+                folder:
+                    type: string
+                    description: |-
+                        Optional. The folder of the memo.
+                         Format: users/{user}/folders/{folder}
+                         Empty when the memo is ungrouped. Set on create or via UpdateMemo with
+                         the "folder" mask path; set it to an empty string to make the memo
+                         ungrouped. Only the folder owner may assign the folder, and the field is
+                         only populated for the memo creator.
         MemoRelation:
             required:
                 - memo
@@ -4181,6 +4405,11 @@ tags:
     - name: AIService
     - name: AttachmentService
     - name: AuthService
+    - name: FolderService
+      description: |-
+        FolderService manages a user's note folders. Folders are private to their
+         owner: every method requires authentication as the owner. Memos are assigned
+         to at most one folder via Memo.folder; memos without a folder are ungrouped.
     - name: IdentityProviderService
     - name: InstanceService
     - name: MemoService

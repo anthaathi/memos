@@ -48,6 +48,7 @@ type Memo struct {
 	Content    string
 	Visibility Visibility
 	Pinned     bool
+	FolderID   int32
 	Payload    *storepb.MemoPayload
 
 	// Composed fields
@@ -99,7 +100,10 @@ type UpdateMemo struct {
 	Content    *string
 	Visibility *Visibility
 	Pinned     *bool
-	Payload    *storepb.MemoPayload
+	// FolderID sets the memo's folder. A nil pointer leaves the folder
+	// unchanged; a pointer to 0 makes the memo ungrouped.
+	FolderID *int32
+	Payload  *storepb.MemoPayload
 }
 
 type DeleteMemo struct {

@@ -255,7 +255,7 @@ func (s *APIV1Service) ListMemoComments(ctx context.Context, request *v1pb.ListM
 		attachments := attachmentMap[m.ID]
 		relations := relationMap[m.ID]
 
-		memoMessage, err := s.convertMemoFromStoreWithCreators(ctx, m, reactions, attachments, relations, creatorMap)
+		memoMessage, err := s.convertMemoFromStoreWithCreators(ctx, m, reactions, attachments, relations, creatorMap, nil)
 		if err != nil {
 			if stderrors.Is(err, errMemoCreatorNotFound) {
 				slog.Warn("Skipping memo comment with missing creator",

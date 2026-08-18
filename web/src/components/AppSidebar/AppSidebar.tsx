@@ -61,6 +61,7 @@ import type { MemoView } from "@/types/proto/api/v1/memo_view_service_pb";
 import { User_Role, UserNotification_Status } from "@/types/proto/api/v1/user_service_pb";
 import { useTranslate } from "@/utils/i18n";
 import MemosLogo from "../MemosLogo";
+import FoldersSection from "./FoldersSection";
 import { getSidebarRouteKind } from "./routes";
 import SidebarRow, { SIDEBAR_ROW_CLASSES, SIDEBAR_ROW_ICON_CLASSES, sidebarRowStateClasses } from "./SidebarRow";
 import SidebarSection, {
@@ -244,6 +245,7 @@ const CollectionSidebarContent = ({ context }: { context: MemoStatsContext }) =>
       <SidebarSection ariaLabel={t("common.statistics")}>
         <StatisticsView statisticsData={statistics} navigationTarget={filterTarget} onDateSelect={() => setMobileOpen(false)} />
       </SidebarSection>
+      {showViews && <FoldersSection />}
       {showViews && <ViewsSection />}
       <TagsSection tagCount={tags} navigationTarget={filterTarget} scope={statsUserName ?? context} onSelect={() => setMobileOpen(false)} />
     </div>

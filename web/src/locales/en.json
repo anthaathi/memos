@@ -227,7 +227,9 @@
     "version": "Version",
     "visibility": "Visibility",
     "views": "Views",
-    "yourself": "Yourself"
+    "yourself": "Yourself",
+    "folders": "Folders",
+    "loading": "Loading…"
   },
   "locale-picker": {
     "no-language-feedback": "Language not found? Submit feedback"
@@ -315,6 +317,29 @@
       "unsupported": "Audio recording unsupported",
       "unsupported-description": "This browser cannot record audio from the memo composer."
     }
+  },
+  "folder": {
+    "all-notes": "All notes",
+    "ungrouped": "Ungrouped",
+    "create": "New folder",
+    "create-description": "Group related notes into a folder.",
+    "create-success": "Folder \"{{title}}\" created",
+    "rename": "Rename folder",
+    "rename-success": "Folder renamed",
+    "delete-confirm": "Delete folder \"{{title}}\"?",
+    "delete-confirm-description": "Notes in this folder will not be deleted. They will move to Ungrouped.",
+    "delete-success": "Folder \"{{title}}\" deleted",
+    "action-failed": "Something went wrong. Please try again.",
+    "title-placeholder": "Folder name",
+    "empty-hint": "Create a folder to group your notes",
+    "loading": "Loading folders…",
+    "not-found": "This folder doesn't exist anymore",
+    "back-to-all-notes": "Back to all notes",
+    "move-to": "Move to folder",
+    "move-to-description": "Choose a folder for this note. Ungrouped keeps it outside every folder.",
+    "move-success": "Moved",
+    "move-failed": "Failed to move the note",
+    "no-folders-hint": "No folders yet"
   },
   "inbox": {
     "failed-to-load": "Failed to load inbox item",

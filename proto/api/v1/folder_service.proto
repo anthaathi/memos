@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package memos.api.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "gen/api/v1";
+
+// FolderService manages a user's note folders. Folders are private to their
+// owner: every method requires authentication as the owner. Memos are assigned
+// to at most one folder via Memo.folder; memos without a folder are ungrouped.
+service FolderService {
+  // ListFolders returns a user's folders ordered by pinned first, then title.
+  rpc ListFolders(ListFoldersRequest) returns (ListFoldersResponse) {
+    option (google.api.http) = {get: "/api/v1/{parent=users/*}/folders"};
+    option (google.api.method_signature) = "parent";
+  }
+
+  // GetFolder gets a folder by name.
+  rpc GetFolder(GetFolderRequest) returns (Folder) {
+    option (google.api.http) = {get: "/api/v1/{name=users/*/folders/*}"};
+    option (google.api.method_signature) = "name";
+  }
+
+  // CreateFolder creates a new folder for a user.
+  rpc CreateFolder(CreateFolderRequest) returns (Folder) {
+    option (google.api.http) = {
+      post: "/api/v1/{parent=users/*}/folders"
+      body: "folder"
+    };
+    option (google.api.method_signature) = "parent,folder";
+  }
+
+  // UpdateFolder updates a folder for a user.
+  rpc UpdateFolder(UpdateFolderRequest) returns (Folder) {
+    option (google.api.http) = {
+      patch: "/api/v1/{folder.name=users/*/folders/*}"
+      body: "folder"
+    };
+    option (google.api.method_signature) = "folder,update_mask";
+  }
+
+  // DeleteFolder deletes a folder for a user. Memos in the folder are not
+  // deleted; they become ungrouped.
+  rpc DeleteFolder(DeleteFolderRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/api/v1/{name=users/*/folders/*}"};
+    option (google.api.method_signature) = "name";
+  }
+}
+
+message Folder {
+  option (google.api.resource) = {
+    type: "memos.api.v1/Folder"
+    pattern: "users/{user}/folders/{folder}"
+    name_field: "name"
+    singular: "folder"
+    plural: "folders"
+  };
+
+  // The resource name of the folder.
+  // Format: users/{user}/folders/{folder}
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Required. The title of the folder.
+  string title = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Whether the folder is pinned to the top of the folder list.
+  bool pinned = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Output only. The creation timestamp.
+  google.protobuf.Timestamp create_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The last update timestamp.
+  google.protobuf.Timestamp update_time = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The number of normal (non-archived, non-comment) memos in
+  // the folder.
+  int32 memo_count = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+message ListFoldersRequest {
+  // Required. The parent resource where folders are listed.
+  // Format: users/{user}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {child_type: "memos.api.v1/Folder"}
+  ];
+}
+
+message ListFoldersResponse {
+  // The list of folders.
+  repeated Folder folders = 1;
+
+  // The number of normal (non-archived, non-comment) memos that are not
+  // assigned to any folder.
+  int32 ungrouped_memo_count = 2;
+}
+
+message GetFolderRequest {
+  // Required. The resource name of the folder to retrieve.
+  // Format: users/{user}/folders/{folder}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "memos.api.v1/Folder"}
+  ];
+}
+
+message CreateFolderRequest {
+  // Required. The parent resource where this folder will be created.
+  // Format: users/{user}
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {child_type: "memos.api.v1/Folder"}
+  ];
+
+  // Required. The folder to create.
+  Folder folder = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. If set, validate the request, but do not actually create the folder.
+  bool validate_only = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message UpdateFolderRequest {
+  // Required. The folder resource which replaces the resource on the server.
+  Folder folder = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. The list of fields to update. Supported paths: title, pinned.
+  google.protobuf.FieldMask update_mask = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message DeleteFolderRequest {
+  // Required. The resource name of the folder to delete.
+  // Format: users/{user}/folders/{folder}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "memos.api.v1/Folder"}
+  ];
+}

@@ -33,6 +33,7 @@ type APIV1Service struct {
 	v1pb.UnimplementedAttachmentServiceServer
 	v1pb.UnimplementedAIServiceServer
 	v1pb.UnimplementedMemoViewServiceServer
+	v1pb.UnimplementedFolderServiceServer
 	v1pb.UnimplementedIdentityProviderServiceServer
 
 	Secret                  string
@@ -160,6 +161,9 @@ func (s *APIV1Service) RegisterGateway(ctx context.Context, echoServer *echo.Ech
 		return err
 	}
 	if err := v1pb.RegisterMemoViewServiceHandlerServer(ctx, gwMux, s); err != nil {
+		return err
+	}
+	if err := v1pb.RegisterFolderServiceHandlerServer(ctx, gwMux, s); err != nil {
 		return err
 	}
 	if err := v1pb.RegisterIdentityProviderServiceHandlerServer(ctx, gwMux, s); err != nil {

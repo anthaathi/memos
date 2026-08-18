@@ -25,10 +25,10 @@ func (s *APIV1Service) convertMemoFromStore(ctx context.Context, memo *store.Mem
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list memo creators")
 	}
-	return s.convertMemoFromStoreWithCreators(ctx, memo, reactions, attachments, relations, creatorMap)
+	return s.convertMemoFromStoreWithCreators(ctx, memo, reactions, attachments, relations, creatorMap, nil)
 }
 
-func (s *APIV1Service) convertMemoFromStoreWithCreators(ctx context.Context, memo *store.Memo, reactions []*store.Reaction, attachments []*store.Attachment, relations []*v1pb.MemoRelation, creatorMap map[int32]*store.User) (*v1pb.Memo, error) {
+func (s *APIV1Service) convertMemoFromStoreWithCreators(ctx context.Context, memo *store.Memo, reactions []*store.Reaction, attachments []*store.Attachment, relations []*v1pb.MemoRelation, creatorMap map[int32]*store.User, foldersByID map[int32]*store.MemoFolder) (*v1pb.Memo, error) {
 	name := fmt.Sprintf("%s%s", MemoNamePrefix, memo.UID)
 	creator := creatorMap[memo.CreatorID]
 	if creator == nil {
@@ -53,6 +53,12 @@ func (s *APIV1Service) convertMemoFromStoreWithCreators(ctx context.Context, mem
 	if memo.ParentUID != nil {
 		parentName := fmt.Sprintf("%s%s", MemoNamePrefix, *memo.ParentUID)
 		memoMessage.Parent = &parentName
+	}
+
+	if memo.FolderID != 0 {
+		if folderName := s.memoFolderName(ctx, memo, creator, foldersByID); folderName != "" {
+			memoMessage.Folder = folderName
+		}
 	}
 
 	reactionMessages, err := s.convertReactionsFromStoreWithCreators(ctx, reactions, creatorMap)
@@ -80,6 +86,34 @@ func (s *APIV1Service) convertMemoFromStoreWithCreators(ctx context.Context, mem
 	memoMessage.Snippet = snippet
 
 	return memoMessage, nil
+}
+
+// memoFolderName returns the folder resource name for a memo, or an empty
+// string when the memo is ungrouped, the folder no longer exists, or the
+// caller is not allowed to see folder assignments (only the memo creator and
+// admins are). foldersByID optionally provides a batch-loaded folder map.
+func (s *APIV1Service) memoFolderName(ctx context.Context, memo *store.Memo, creator *store.User, foldersByID map[int32]*store.MemoFolder) string {
+	currentUser, err := s.fetchCurrentUser(ctx)
+	if err != nil || currentUser == nil {
+		return ""
+	}
+	if currentUser.ID != memo.CreatorID && !isSuperUser(currentUser) {
+		return ""
+	}
+	var folder *store.MemoFolder
+	if foldersByID != nil {
+		folder = foldersByID[memo.FolderID]
+	} else {
+		folderID := memo.FolderID
+		folder, err = s.Store.GetMemoFolder(ctx, &store.FindMemoFolder{ID: &folderID})
+		if err != nil {
+			return ""
+		}
+	}
+	if folder == nil || folder.CreatorID != memo.CreatorID {
+		return ""
+	}
+	return constructFolderName(creator.Username, folder.UID)
 }
 
 func (s *APIV1Service) listUsersByIDWithExisting(ctx context.Context, userIDs []int32, existing map[int32]*store.User) (map[int32]*store.User, error) {

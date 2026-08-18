@@ -1,5 +1,5 @@
 import copy from "copy-to-clipboard";
-import { BookmarkCheckIcon, BookmarkIcon, ChevronDownIcon, ImageIcon, LinkIcon, Share2Icon } from "lucide-react";
+import { BookmarkCheckIcon, BookmarkIcon, ChevronDownIcon, FolderInputIcon, ImageIcon, LinkIcon, Share2Icon } from "lucide-react";
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
@@ -8,6 +8,7 @@ import SidebarSection, { SIDEBAR_SECTION_STACK_CLASSES } from "@/components/AppS
 import { extractHeadings } from "@/components/MemoContent/pipeline";
 import { getRelationBuckets, getRelationMemo } from "@/components/MemoMetadata/Relation/relationHelpers";
 import { useResolvedRelationMemos } from "@/components/MemoMetadata/Relation/useResolvedRelationMemos";
+import MoveToFolderDialog from "@/components/MoveToFolderDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useInstance } from "@/contexts/InstanceContext";
 import { useOverflowTitle } from "@/hooks";
@@ -56,9 +57,11 @@ const MemoDetailSidebar = ({ memo, className, onShareImageOpen, forceReadonly = 
   const { profile } = useInstance();
   const { mutateAsync: updateMemo } = useUpdateMemo();
   const [sharePanelOpen, setSharePanelOpen] = useState(false);
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
 
   const readonly = forceReadonly || (memo.creator !== currentUser?.name && !isSuperUser(currentUser));
   const canPin = !readonly && !memo.parent && memo.state === State.NORMAL;
+  const canMoveFolder = canPin;
   const canManageShares = !forceReadonly && !memo.parent && (memo.creator === currentUser?.name || isSuperUser(currentUser));
 
   const headings = useMemo(() => extractHeadings(memo.content), [memo.content]);
@@ -103,6 +106,7 @@ const MemoDetailSidebar = ({ memo, className, onShareImageOpen, forceReadonly = 
             onClick={handleTogglePin}
           />
         )}
+        {canMoveFolder && <SidebarRow icon={FolderInputIcon} label={t("folder.move-to")} onClick={() => setMoveDialogOpen(true)} />}
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("common.share")}
@@ -152,6 +156,7 @@ const MemoDetailSidebar = ({ memo, className, onShareImageOpen, forceReadonly = 
       )}
 
       {sharePanelOpen && <MemoSharePanel memoName={memo.name} open={sharePanelOpen} onClose={() => setSharePanelOpen(false)} />}
+      {moveDialogOpen && <MoveToFolderDialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen} memo={memo} />}
     </div>
   );
 };

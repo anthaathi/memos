@@ -120,6 +120,9 @@ func deleteUserTargetsTx(ctx context.Context, tx *sql.Tx, userID int32, targets 
 	if err := deleteMemosTx(ctx, tx, memoIDs); err != nil {
 		return err
 	}
+	if err := deleteMemoFoldersTx(ctx, tx, userID); err != nil {
+		return err
+	}
 	if err := deleteUserRowTx(ctx, tx, userID); err != nil {
 		return err
 	}
@@ -563,4 +566,9 @@ func attachmentIDsFromList(attachments []*store.Attachment) []int32 {
 		ids = append(ids, attachment.ID)
 	}
 	return ids
+}
+
+func deleteMemoFoldersTx(ctx context.Context, tx *sql.Tx, userID int32) error {
+	_, err := tx.ExecContext(ctx, "DELETE FROM `memo_folder` WHERE `creator_id` = ?", userID)
+	return err
 }

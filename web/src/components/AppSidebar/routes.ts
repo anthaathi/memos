@@ -7,6 +7,8 @@ export type SidebarRouteKind = MemoScope | "profile" | "views" | "attachments" |
 export const getSidebarRouteKind = (path: string): SidebarRouteKind => {
   if (isMemoScopeRoute(path)) return resolveMemoScope(path);
   if (matchPath("/u/:username", path)) return "profile";
+  // Folder pages render the signed-in collection sidebar (stats, folders, views, tags).
+  if (matchPath(`${ROUTES.FOLDERS}/:folderId`, path)) return "home";
   if (path === ROUTES.VIEWS) return "views";
   if (path === ROUTES.ATTACHMENTS) return "attachments";
   if (path === ROUTES.INBOX) return "inbox";

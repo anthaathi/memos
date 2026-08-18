@@ -570,6 +570,53 @@ func (s *ConnectServiceHandler) DeleteMemoView(ctx context.Context, req *connect
 	return connect.NewResponse(resp), nil
 }
 
+// FolderService
+
+// ListFolders lists the folders owned by a user.
+func (s *ConnectServiceHandler) ListFolders(ctx context.Context, req *connect.Request[v1pb.ListFoldersRequest]) (*connect.Response[v1pb.ListFoldersResponse], error) {
+	resp, err := s.APIV1Service.ListFolders(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// GetFolder returns a folder by resource name.
+func (s *ConnectServiceHandler) GetFolder(ctx context.Context, req *connect.Request[v1pb.GetFolderRequest]) (*connect.Response[v1pb.Folder], error) {
+	resp, err := s.APIV1Service.GetFolder(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// CreateFolder creates a folder for a user.
+func (s *ConnectServiceHandler) CreateFolder(ctx context.Context, req *connect.Request[v1pb.CreateFolderRequest]) (*connect.Response[v1pb.Folder], error) {
+	resp, err := s.APIV1Service.CreateFolder(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// UpdateFolder updates the selected fields of a folder.
+func (s *ConnectServiceHandler) UpdateFolder(ctx context.Context, req *connect.Request[v1pb.UpdateFolderRequest]) (*connect.Response[v1pb.Folder], error) {
+	resp, err := s.APIV1Service.UpdateFolder(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// DeleteFolder deletes a folder by resource name.
+func (s *ConnectServiceHandler) DeleteFolder(ctx context.Context, req *connect.Request[v1pb.DeleteFolderRequest]) (*connect.Response[emptypb.Empty], error) {
+	resp, err := s.APIV1Service.DeleteFolder(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
 // IdentityProviderService
 
 func (s *ConnectServiceHandler) ListIdentityProviders(ctx context.Context, req *connect.Request[v1pb.ListIdentityProvidersRequest]) (*connect.Response[v1pb.ListIdentityProvidersResponse], error) {

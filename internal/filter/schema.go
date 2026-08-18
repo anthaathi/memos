@@ -161,6 +161,24 @@ func NewSchema() Schema {
 				CompareNeq: true,
 			},
 		},
+		"folder_uid": {
+			// folder_uid resolves the memo's folder UID without requiring a join,
+			// so it works in any query over the memo table. It renders as an
+			// empty string for ungrouped memos (folder_id = 0).
+			Name:   "folder_uid",
+			Kind:   FieldKindScalar,
+			Type:   FieldTypeString,
+			Column: Column{Table: "memo", Name: "folder_id"},
+			Expressions: map[DialectName]string{
+				DialectSQLite:   "COALESCE((SELECT uid FROM memo_folder WHERE id = %s), '')",
+				DialectMySQL:    "COALESCE((SELECT uid FROM memo_folder WHERE id = %s), '')",
+				DialectPostgres: "COALESCE((SELECT uid FROM memo_folder WHERE id = %s), '')",
+			},
+			AllowedComparisonOps: map[ComparisonOperator]bool{
+				CompareEq:  true,
+				CompareNeq: true,
+			},
+		},
 		"visibility": {
 			Name:        "visibility",
 			Kind:        FieldKindScalar,
@@ -249,6 +267,7 @@ func NewSchema() Schema {
 		cel.Variable("created_ts", cel.TimestampType),
 		cel.Variable("updated_ts", cel.TimestampType),
 		cel.Variable("pinned", cel.BoolType),
+		cel.Variable("folder_uid", cel.StringType),
 		cel.Variable("tag", cel.StringType),
 		cel.Variable("tags", cel.ListType(cel.StringType)),
 		cel.Variable("visibility", cel.StringType),

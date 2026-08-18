@@ -37,6 +37,13 @@ type Driver interface {
 	ListMemoRelations(ctx context.Context, find *FindMemoRelation) ([]*MemoRelation, error)
 	DeleteMemoRelation(ctx context.Context, delete *DeleteMemoRelation) error
 
+	// MemoFolder model related methods.
+	CreateMemoFolder(ctx context.Context, create *MemoFolder) (*MemoFolder, error)
+	ListMemoFolders(ctx context.Context, find *FindMemoFolder) ([]*MemoFolder, error)
+	UpdateMemoFolder(ctx context.Context, update *UpdateMemoFolder) error
+	DeleteMemoFolder(ctx context.Context, delete *DeleteMemoFolder) error
+	CountMemosByFolder(ctx context.Context, creatorID int32) (*MemoFolderCounts, error)
+
 	// InstanceSetting model related methods.
 	UpsertInstanceSetting(ctx context.Context, upsert *InstanceSetting) (*InstanceSetting, error)
 	ListInstanceSettings(ctx context.Context, find *FindInstanceSetting) ([]*InstanceSetting, error)

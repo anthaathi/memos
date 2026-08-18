@@ -18,6 +18,7 @@ const About = lazyWithReload(() => import("@/pages/About"));
 const Archived = lazyWithReload(() => import("@/pages/Archived"));
 const AuthCallback = lazyWithReload(() => import("@/pages/AuthCallback"));
 const Explore = lazyWithReload(() => import("@/pages/Explore"));
+const FolderView = lazyWithReload(() => import("@/pages/FolderView"));
 const Home = lazyWithReload(() => import("@/pages/Home"));
 const Inboxes = lazyWithReload(() => import("@/pages/Inboxes"));
 const MemoDetail = lazyWithReload(() => import("@/pages/MemoDetail"));
@@ -91,7 +92,10 @@ export const routeConfig: RouteObject[] = [
                   { path: Routes.ARCHIVED, element: <Archived /> },
                   {
                     element: <RequireFullInitializationRoute />,
-                    children: [{ path: Routes.VIEWS, element: <MemoViews /> }],
+                    children: [
+                      { path: Routes.VIEWS, element: <MemoViews /> },
+                      { path: `${Routes.FOLDERS}/:folderId`, element: <FolderView /> },
+                    ],
                   },
                 ],
               },

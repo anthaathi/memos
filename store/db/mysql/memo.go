@@ -37,6 +37,11 @@ func (d *DB) CreateMemo(ctx context.Context, create *store.Memo) (*store.Memo, e
 		placeholder = append(placeholder, "FROM_UNIXTIME(?)")
 		args = append(args, create.UpdatedTs)
 	}
+	if create.FolderID != 0 {
+		fields = append(fields, "`folder_id`")
+		placeholder = append(placeholder, "?")
+		args = append(args, create.FolderID)
+	}
 
 	stmt := "INSERT INTO `memo` (" + strings.Join(fields, ", ") + ") VALUES (" + strings.Join(placeholder, ", ") + ")"
 	result, err := d.db.ExecContext(ctx, stmt, args...)
@@ -137,6 +142,7 @@ func (d *DB) ListMemos(ctx context.Context, find *store.FindMemo) ([]*store.Memo
 		"`memo`.`row_status` AS `row_status`",
 		"`memo`.`visibility` AS `visibility`",
 		"`memo`.`pinned` AS `pinned`",
+		"`memo`.`folder_id` AS `folder_id`",
 		"`memo`.`payload` AS `payload`",
 		"CASE WHEN `parent_memo`.`uid` IS NOT NULL THEN `parent_memo`.`uid` ELSE NULL END AS `parent_uid`",
 	}
@@ -177,6 +183,7 @@ func (d *DB) ListMemos(ctx context.Context, find *store.FindMemo) ([]*store.Memo
 			&memo.RowStatus,
 			&memo.Visibility,
 			&memo.Pinned,
+			&memo.FolderID,
 			&payloadBytes,
 			&memo.ParentUID,
 		}

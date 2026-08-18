@@ -7,6 +7,7 @@ import {
   CopyIcon,
   Edit3Icon,
   FileTextIcon,
+  FolderInputIcon,
   LinkIcon,
   ListChecksIcon,
   ListRestartIcon,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import MoveToFolderDialog from "@/components/MoveToFolderDialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,6 +38,7 @@ const MemoActionMenu = (props: MemoActionMenuProps) => {
 
   // Dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
 
   // Derived state
   const isComment = Boolean(memo.parent);
@@ -73,6 +76,12 @@ const MemoActionMenu = (props: MemoActionMenuProps) => {
               <DropdownMenuItem onClick={handleTogglePinMemoBtnClick}>
                 {memo.pinned ? <BookmarkMinusIcon className="w-4 h-auto" /> : <BookmarkPlusIcon className="w-4 h-auto" />}
                 {memo.pinned ? t("common.unpin") : t("common.pin")}
+              </DropdownMenuItem>
+            )}
+            {!isComment && (
+              <DropdownMenuItem onClick={() => setMoveDialogOpen(true)}>
+                <FolderInputIcon className="w-4 h-auto" />
+                {t("folder.move-to")}
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={handleEditMemoClick}>
@@ -153,6 +162,9 @@ const MemoActionMenu = (props: MemoActionMenuProps) => {
         onConfirm={confirmDeleteMemo}
         confirmVariant="destructive"
       />
+
+      {/* Move to folder dialog */}
+      {moveDialogOpen && <MoveToFolderDialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen} memo={memo} />}
     </DropdownMenu>
   );
 };

@@ -39,8 +39,24 @@ CREATE TABLE `memo` (
   `content` TEXT NOT NULL,
   `visibility` VARCHAR(256) NOT NULL DEFAULT 'PRIVATE',
   `pinned` BOOLEAN NOT NULL DEFAULT FALSE,
-  `payload` JSON NOT NULL
+  `payload` JSON NOT NULL,
+  `folder_id` INT NOT NULL DEFAULT 0
 );
+
+-- memo_folder
+CREATE TABLE `memo_folder` (
+  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `uid` VARCHAR(256) NOT NULL UNIQUE,
+  `creator_id` INT NOT NULL,
+  `created_ts` BIGINT NOT NULL DEFAULT (UNIX_TIMESTAMP()),
+  `updated_ts` BIGINT NOT NULL DEFAULT (UNIX_TIMESTAMP()),
+  `title` VARCHAR(256) NOT NULL,
+  `pinned` BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX `idx_memo_folder_creator_id` ON `memo_folder`(`creator_id`);
+
+CREATE INDEX `idx_memo_folder_id` ON `memo`(`folder_id`);
 
 -- memo_relation
 CREATE TABLE `memo_relation` (

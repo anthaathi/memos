@@ -138,6 +138,9 @@ func applyMemoUpdate(ctx context.Context, executor memoUpdateExecer, update *sto
 	if v := update.Pinned; v != nil {
 		set, args = append(set, "`pinned` = ?"), append(args, *v)
 	}
+	if v := update.FolderID; v != nil {
+		set, args = append(set, "`folder_id` = ?"), append(args, *v)
+	}
 	if v := update.Payload; v != nil {
 		payload, err := protojson.Marshal(v)
 		if err != nil {

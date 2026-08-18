@@ -34,6 +34,10 @@ func (d *DB) CreateMemo(ctx context.Context, create *store.Memo) (*store.Memo, e
 		fields = append(fields, "updated_ts")
 		args = append(args, create.UpdatedTs)
 	}
+	if create.FolderID != 0 {
+		fields = append(fields, "folder_id")
+		args = append(args, create.FolderID)
+	}
 
 	stmt := "INSERT INTO memo (" + strings.Join(fields, ", ") + ") VALUES (" + placeholders(len(args)) + ") RETURNING id, created_ts, updated_ts, row_status"
 	if err := d.db.QueryRowContext(ctx, stmt, args...).Scan(
@@ -122,6 +126,7 @@ func (d *DB) ListMemos(ctx context.Context, find *store.FindMemo) ([]*store.Memo
 		`memo.row_status AS row_status`,
 		`memo.visibility AS visibility`,
 		`memo.pinned AS pinned`,
+		`memo.folder_id AS folder_id`,
 		`memo.payload AS payload`,
 		`CASE WHEN parent_memo.uid IS NOT NULL THEN parent_memo.uid ELSE NULL END AS parent_uid`,
 	}
@@ -162,6 +167,7 @@ func (d *DB) ListMemos(ctx context.Context, find *store.FindMemo) ([]*store.Memo
 			&memo.RowStatus,
 			&memo.Visibility,
 			&memo.Pinned,
+			&memo.FolderID,
 			&payloadBytes,
 			&memo.ParentUID,
 		}

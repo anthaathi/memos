@@ -101,6 +101,16 @@ func (s *APIV1Service) CreateMemo(ctx context.Context, request *v1pb.CreateMemoR
 		Visibility: convertVisibilityToStore(request.Memo.Visibility),
 	}
 
+	// Resolve the folder assignment, if any. An empty folder name leaves the
+	// memo ungrouped.
+	if request.Memo.Folder != "" {
+		folder, err := s.resolveFolderForUser(ctx, user, request.Memo.Folder)
+		if err != nil {
+			return nil, err
+		}
+		create.FolderID = folder.ID
+	}
+
 	// Set custom timestamps if provided in the request.
 	if request.Memo.CreateTime != nil && request.Memo.CreateTime.IsValid() {
 		createdTs := request.Memo.CreateTime.AsTime().Unix()
@@ -235,6 +245,11 @@ func (s *APIV1Service) ListMemos(ctx context.Context, request *v1pb.ListMemosReq
 		if err := s.validateFilter(ctx, request.Filter); err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid filter: %v", err)
 		}
+		// Folder assignments are private: only the folder's owner may filter by
+		// them. Reject folder_uid predicates that reference foreign folders.
+		if err := s.authorizeFolderUIDFilter(ctx, request.Filter); err != nil {
+			return nil, err
+		}
 		memoFind.Filters = append(memoFind.Filters, request.Filter)
 	}
 
@@ -332,13 +347,33 @@ func (s *APIV1Service) ListMemos(ctx context.Context, request *v1pb.ListMemosReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to list memo creators: %v", err)
 	}
+	// Batch load folders referenced by the listed memos so the converter does
+	// not issue one folder query per memo.
+	folderIDs := make([]int32, 0)
+	seenFolderIDs := make(map[int32]bool)
+	for _, memo := range memos {
+		if memo.FolderID != 0 && !seenFolderIDs[memo.FolderID] {
+			seenFolderIDs[memo.FolderID] = true
+			folderIDs = append(folderIDs, memo.FolderID)
+		}
+	}
+	foldersByID := make(map[int32]*store.MemoFolder)
+	if len(folderIDs) > 0 {
+		folders, err := s.Store.ListMemoFolders(ctx, &store.FindMemoFolder{IDList: folderIDs})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to list memo folders: %v", err)
+		}
+		for _, folder := range folders {
+			foldersByID[folder.ID] = folder
+		}
+	}
 	for _, memo := range memos {
 		memoName := fmt.Sprintf("%s%s", MemoNamePrefix, memo.UID)
 		reactions := reactionMap[memoName]
 		attachments := attachmentMap[memo.ID]
 		relations := relationMap[memo.ID]
 
-		memoMessage, err := s.convertMemoFromStoreWithCreators(ctx, memo, reactions, attachments, relations, creatorMap)
+		memoMessage, err := s.convertMemoFromStoreWithCreators(ctx, memo, reactions, attachments, relations, creatorMap, foldersByID)
 		if err != nil {
 			if stderrors.Is(err, errMemoCreatorNotFound) {
 				slog.Warn("Skipping memo with missing creator",
@@ -495,6 +530,30 @@ func (s *APIV1Service) UpdateMemo(ctx context.Context, request *v1pb.UpdateMemoR
 			update.Visibility = &visibility
 		} else if path == "pinned" {
 			update.Pinned = &request.Memo.Pinned
+		} else if path == "folder" {
+			// An empty folder name makes the memo ungrouped.
+			if request.Memo.Folder == "" {
+				folderID := int32(0)
+				update.FolderID = &folderID
+			} else {
+				// Only the creator or an admin can update the memo, and the
+				// folder must belong to the memo's creator.
+				owner := user
+				if memo.CreatorID != user.ID {
+					owner, err = s.Store.GetUser(ctx, &store.FindUser{ID: &memo.CreatorID})
+					if err != nil {
+						return nil, status.Errorf(codes.Internal, "failed to get memo creator")
+					}
+					if owner == nil {
+						return nil, status.Errorf(codes.NotFound, "memo creator not found")
+					}
+				}
+				folder, err := s.resolveFolderForUser(ctx, owner, request.Memo.Folder)
+				if err != nil {
+					return nil, err
+				}
+				update.FolderID = &folder.ID
+			}
 		} else if path == "state" {
 			rowStatus := convertStateToStore(request.Memo.State)
 			update.RowStatus = &rowStatus

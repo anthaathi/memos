@@ -13,6 +13,8 @@ describe("sidebar route content", () => {
     ["/setting", "settings"],
     ["/memos/abc", "memo"],
     ["/memos/shares/token", "memo"],
+    ["/folders/work", "home"],
+    ["/folders/ungrouped", "home"],
     ["/about", "empty"],
     ["/404", "empty"],
   ])("maps %s to %s content", (path, kind) => {
