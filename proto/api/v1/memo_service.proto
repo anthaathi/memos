@@ -268,6 +268,17 @@ message Memo {
   // Optional. The location of the memo.
   optional Location location = 18 [(google.api.field_behavior) = OPTIONAL];
 
+  // Optional. The folder of the memo.
+  // Format: users/{user}/folders/{folder}
+  // Empty when the memo is ungrouped. Set on create or via UpdateMemo with
+  // the "folder" mask path; set it to an empty string to make the memo
+  // ungrouped. Only the folder owner may assign the folder, and the field is
+  // only populated for the memo creator.
+  string folder = 19 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference) = {type: "memos.api.v1/Folder"}
+  ];
+
   // Computed properties of a memo.
   message Property {
     bool has_link = 1;
@@ -330,6 +341,7 @@ message ListMemosRequest {
   //   created_ts / updated_ts (timestamp), pinned (bool),
   //   visibility (string: PRIVATE | PROTECTED | PUBLIC),
   //   tags (list<string>; match with `"work" in tags`, not `tag == "work"`),
+  //   folder_uid (string; UID of the memo's folder, empty for ungrouped memos),
   //   has_task_list / has_link / has_code / has_incomplete_tasks (bool),
   //   has_location (bool; true when the memo has a location attached).
   // Note: the time fields here are created_ts / updated_ts, which differ from
