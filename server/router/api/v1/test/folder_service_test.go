@@ -14,7 +14,7 @@ import (
 	apiv1 "github.com/usememos/memos/proto/gen/api/v1"
 )
 
-func createTestFolder(ctx context.Context, t *testing.T, ts *TestService, userCtx context.Context, userName, title string) *apiv1.Folder {
+func createTestFolder(userCtx context.Context, t *testing.T, ts *TestService, userName, title string) *apiv1.Folder {
 	t.Helper()
 	folder, err := ts.Service.CreateFolder(userCtx, &apiv1.CreateFolderRequest{
 		Parent: userName,
@@ -72,7 +72,7 @@ func TestFolderServiceCRUD(t *testing.T) {
 	})
 
 	t.Run("update title and pinned", func(t *testing.T) {
-		folder := createTestFolder(ctx, t, ts, userCtx, userName, "Work")
+		folder := createTestFolder(userCtx, t, ts, userName, "Work")
 		updated, err := ts.Service.UpdateFolder(userCtx, &apiv1.UpdateFolderRequest{
 			Folder:     &apiv1.Folder{Name: folder.Name, Title: "Work 2026", Pinned: true},
 			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"title", "pinned"}},
@@ -90,7 +90,7 @@ func TestFolderServiceCRUD(t *testing.T) {
 	})
 
 	t.Run("get and delete", func(t *testing.T) {
-		folder := createTestFolder(ctx, t, ts, userCtx, userName, "Temp")
+		folder := createTestFolder(userCtx, t, ts, userName, "Temp")
 		got, err := ts.Service.GetFolder(userCtx, &apiv1.GetFolderRequest{Name: folder.Name})
 		require.NoError(t, err)
 		require.Equal(t, folder.Name, got.Name)
@@ -122,7 +122,7 @@ func TestFolderServiceAuthorization(t *testing.T) {
 	require.NoError(t, err)
 	otherCtx := ts.CreateUserContext(ctx, other.ID)
 
-	folder := createTestFolder(ctx, t, ts, ownerCtx, ownerName, "Private stuff")
+	folder := createTestFolder(ownerCtx, t, ts, ownerName, "Private stuff")
 
 	t.Run("list requires ownership", func(t *testing.T) {
 		_, err := ts.Service.ListFolders(otherCtx, &apiv1.ListFoldersRequest{Parent: ownerName})
@@ -175,9 +175,9 @@ func TestFolderListOrderingAndCounts(t *testing.T) {
 	userCtx := ts.CreateUserContext(ctx, user.ID)
 	userName := fmt.Sprintf("users/%s", user.Username)
 
-	zFolder := createTestFolder(ctx, t, ts, userCtx, userName, "zebra")
-	createTestFolder(ctx, t, ts, userCtx, userName, "apple")
-	pinnedFolder := createTestFolder(ctx, t, ts, userCtx, userName, "middle")
+	zFolder := createTestFolder(userCtx, t, ts, userName, "zebra")
+	createTestFolder(userCtx, t, ts, userName, "apple")
+	pinnedFolder := createTestFolder(userCtx, t, ts, userName, "middle")
 	_, err = ts.Service.UpdateFolder(userCtx, &apiv1.UpdateFolderRequest{
 		Folder:     &apiv1.Folder{Name: pinnedFolder.Name, Pinned: true},
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"pinned"}},
@@ -222,9 +222,9 @@ func TestMemoFolderAssignmentAPI(t *testing.T) {
 	require.NoError(t, err)
 	otherCtx := ts.CreateUserContext(ctx, other.ID)
 	otherName := fmt.Sprintf("users/%s", other.Username)
-	otherFolder := createTestFolder(ctx, t, ts, otherCtx, otherName, "Other's folder")
+	otherFolder := createTestFolder(otherCtx, t, ts, otherName, "Other's folder")
 
-	folder := createTestFolder(ctx, t, ts, userCtx, userName, "Work")
+	folder := createTestFolder(userCtx, t, ts, userName, "Work")
 
 	t.Run("create memo in folder", func(t *testing.T) {
 		memo, err := ts.Service.CreateMemo(userCtx, &apiv1.CreateMemoRequest{
@@ -325,7 +325,7 @@ func TestListMemosFolderUIDFilter(t *testing.T) {
 	userCtx := ts.CreateUserContext(ctx, user.ID)
 	userName := fmt.Sprintf("users/%s", user.Username)
 
-	folder := createTestFolder(ctx, t, ts, userCtx, userName, "Filtered")
+	folder := createTestFolder(userCtx, t, ts, userName, "Filtered")
 	inFolder, err := ts.Service.CreateMemo(userCtx, &apiv1.CreateMemoRequest{
 		Memo: &apiv1.Memo{Content: "inside", Visibility: apiv1.Visibility_PRIVATE, Folder: folder.Name},
 	})
@@ -361,7 +361,7 @@ func TestListMemosFolderUIDFilterOwnership(t *testing.T) {
 	require.NoError(t, err)
 	ownerCtx := ts.CreateUserContext(ctx, owner.ID)
 	ownerName := fmt.Sprintf("users/%s", owner.Username)
-	secretFolder := createTestFolder(ctx, t, ts, ownerCtx, ownerName, "Secret")
+	secretFolder := createTestFolder(ownerCtx, t, ts, ownerName, "Secret")
 	secretUID := strings.TrimPrefix(secretFolder.Name, ownerName+"/folders/")
 
 	other, err := ts.CreateRegularUser(ctx, "folder-filter-spy")

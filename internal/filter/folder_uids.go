@@ -43,6 +43,8 @@ func (c *folderUIDCollector) walkCondition(cond Condition) {
 				}
 			}
 		}
+	default:
+		// Other condition shapes do not compare folder_uid against literals.
 	}
 }
 
