@@ -186,6 +186,16 @@ func TestBuildAPIRequestAcceptsHierarchicalResourceNamesForPathParameters(t *tes
 			wantPath: "/api/v1/users/user123/views/view456",
 		},
 		{
+			name:       "canonical folder name",
+			path:       "/api/v1/users/{user}/folders/{folder}",
+			parameters: []string{"user", "folder"},
+			arguments: map[string]any{
+				"user":   "users/demo",
+				"folder": "users/demo/folders/abc123",
+			},
+			wantPath: "/api/v1/users/demo/folders/abc123",
+		},
+		{
 			name:       "canonical nested name on action route",
 			path:       "/api/v1/users/{user}/webhooks/{webhook}:getSigningSecret",
 			parameters: []string{"user", "webhook"},

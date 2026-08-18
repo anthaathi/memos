@@ -89,8 +89,8 @@ use `$ref`. `openapi.go` resolves these into local definitions:
   to `required`. Body `$defs` are lifted to the schema's top-level `$defs`.
 - Per-operation overrides relax resource-level requirements for create and
   partial-update bodies and remove fields already supplied by a path binding
-  from `body: "*"` schemas. Memo updates may omit `updateMask` so the REST
-  gateway can infer it from the fields present in the request body.
+  from `body: "*"` schemas. Memo and folder updates may omit `updateMask` so the
+  REST gateway can infer it from the fields present in the request body.
 - The schema sets `"additionalProperties": false`.
 
 The output schema is the operation's 200 `application/json` schema. When a 200
@@ -138,10 +138,11 @@ a personal access token as a bearer credential. Example client config:
 ## Tool surface
 
 The server exposes a curated allowlist (`curatedOperationIDs` in `catalog.go`),
-centered on memos and attachments, plus two read-only orientation tools:
-`memo_view_list_memo_views` (surfaces a user's named CEL filters for reuse with
-`memo_list_memos`) and `auth_get_current_user` (a "whoami" so an agent can
-resolve its own user — the single allowed auth/identity operation):
+centered on memos and attachments, plus folder tools so agents can organize
+notes, and two read-only orientation tools: `memo_view_list_memo_views`
+(surfaces a user's named CEL filters for reuse with `memo_list_memos`) and
+`auth_get_current_user` (a "whoami" so an agent can resolve its own user — the
+single allowed auth/identity operation):
 
 | OpenAPI operation | MCP tool |
 | --- | --- |
@@ -164,7 +165,17 @@ resolve its own user — the single allowed auth/identity operation):
 | `AttachmentService_GetAttachment` | `attachment_get_attachment` |
 | `AttachmentService_DeleteAttachment` | `attachment_delete_attachment` |
 | `MemoViewService_ListMemoViews` | `memo_view_list_memo_views` |
+| `FolderService_ListFolders` | `folder_list_folders` |
+| `FolderService_GetFolder` | `folder_get_folder` |
+| `FolderService_CreateFolder` | `folder_create_folder` |
+| `FolderService_UpdateFolder` | `folder_update_folder` |
+| `FolderService_DeleteFolder` | `folder_delete_folder` |
 | `AuthService_GetCurrentUser` | `auth_get_current_user` |
+
+Folders are private to their owner and require an authenticated token. Memos
+are moved between folders with `memo_update_memo` (or assigned at creation with
+`memo_create_memo`) via the memo body's `folder` field, which takes a canonical
+folder name (`users/{user}/folders/{folder}`) or an empty string to ungroup.
 
 **Naming rule** (`toolNameFromOperationID`): drop the `Service` suffix from the
 subject and convert both subject and method from camelCase to snake_case, joined
@@ -182,7 +193,8 @@ Per-operation overrides then correct cases the method heuristic gets wrong.
 `MemoService_SetMemoAttachments` and `MemoService_SetMemoRelations` are PATCH
 but declaratively replace the full set on a memo, so they report both
 `IdempotentHint: true` and `DestructiveHint: true`. `MemoService_UpdateMemo`
-also reports `DestructiveHint: true` because it can overwrite existing fields.
+and `FolderService_UpdateFolder` also report `DestructiveHint: true` because
+they can overwrite existing fields.
 
 `OpenWorldHint` is `false` for all tools. Annotations are client hints; they do
 not replace API authorization.

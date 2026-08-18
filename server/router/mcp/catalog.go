@@ -29,6 +29,13 @@ var curatedOperationIDs = []string{
 	"AttachmentService_GetAttachment",
 	"AttachmentService_DeleteAttachment",
 	"MemoViewService_ListMemoViews",
+	// Folders let agents organize notes: list/create/update/delete folders and
+	// move memos between them via MemoService_UpdateMemo's body.folder field.
+	"FolderService_ListFolders",
+	"FolderService_GetFolder",
+	"FolderService_CreateFolder",
+	"FolderService_UpdateFolder",
+	"FolderService_DeleteFolder",
 	// The only allowed auth/identity operation: a read-only "whoami" so agents
 	// can resolve the current user (e.g. for MemoViewService_ListMemoViews).
 	"AuthService_GetCurrentUser",
@@ -82,6 +89,11 @@ var requestBodySchemaOverrides = map[string]requestBodySchemaOverride{
 	"MemoService_UpsertMemoReaction": {
 		required:          []string{"reaction"},
 		omittedProperties: []string{"name"},
+	},
+	"FolderService_UpdateFolder": {
+		clearRequired:     true,
+		omittedProperties: []string{"name"},
+		minProperties:     1,
 	},
 }
 
@@ -304,6 +316,7 @@ var destructiveOperationIDs = map[string]bool{
 	"MemoService_UpdateMemo":         true,
 	"MemoService_SetMemoAttachments": true,
 	"MemoService_SetMemoRelations":   true,
+	"FolderService_UpdateFolder":     true,
 }
 
 // annotationsForOperation derives the method-based annotations and then applies

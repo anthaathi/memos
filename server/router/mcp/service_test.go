@@ -142,6 +142,7 @@ func TestMCPProtocolListsCuratedToolsOnly(t *testing.T) {
 	}
 	require.Contains(t, names, "memo_list_memos")
 	require.Contains(t, names, "memo_create_memo")
+	require.Contains(t, names, "folder_list_folders")
 	require.NotContains(t, names, "auth_sign_in")
 	require.NotContains(t, names, "user_create_user")
 }
@@ -219,6 +220,55 @@ func TestMCPToolCallAllowsGatewayToInferMemoUpdateMask(t *testing.T) {
 	require.Equal(t, map[string]any{
 		"name":    "memos/abc123",
 		"content": "updated",
+	}, result["structuredContent"])
+	require.Equal(t, 1, routeHits)
+}
+
+func TestMCPToolCallUpdatesFolderWithCanonicalNames(t *testing.T) {
+	echoServer := echo.New()
+	routeHits := 0
+	echoServer.PATCH("/api/v1/users/:user/folders/:folder", func(c *echo.Context) error {
+		routeHits++
+		// Canonical resource names ("users/demo", "users/demo/folders/abc123")
+		// must collapse to their bare path segments.
+		require.Equal(t, "demo", c.Param("user"))
+		require.Equal(t, "abc123", c.Param("folder"))
+		require.Empty(t, c.QueryParam("updateMask"))
+
+		body := map[string]any{}
+		require.NoError(t, json.NewDecoder(c.Request().Body).Decode(&body))
+		require.Equal(t, map[string]any{"pinned": true}, body)
+		return c.JSON(http.StatusOK, map[string]any{
+			"name":   "users/demo/folders/abc123",
+			"pinned": true,
+		})
+	})
+
+	service, err := NewMCPService(&profile.Profile{Version: "test-version"}, echoServer)
+	require.NoError(t, err)
+	service.RegisterRoutes(echoServer)
+
+	initializeMCP(t, echoServer)
+	response := postMCP(t, echoServer, map[string]any{
+		"jsonrpc": "2.0",
+		"id":      2,
+		"method":  "tools/call",
+		"params": map[string]any{
+			"name": "folder_update_folder",
+			"arguments": map[string]any{
+				"user":   "users/demo",
+				"folder": "users/demo/folders/abc123",
+				"body":   map[string]any{"pinned": true},
+			},
+		},
+	})
+
+	result, ok := response["result"].(map[string]any)
+	require.True(t, ok)
+	require.NotEqual(t, true, result["isError"])
+	require.Equal(t, map[string]any{
+		"name":   "users/demo/folders/abc123",
+		"pinned": true,
 	}, result["structuredContent"])
 	require.Equal(t, 1, routeHits)
 }

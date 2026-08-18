@@ -9,7 +9,7 @@ import (
 )
 
 func TestCuratedOperationIDsStayMemoFocused(t *testing.T) {
-	require.Len(t, curatedOperationIDs, 20)
+	require.Len(t, curatedOperationIDs, 25)
 
 	for _, operationID := range curatedOperationIDs {
 		require.NotContains(t, operationID, "Admin")
@@ -163,6 +163,16 @@ func TestBuildToolFromOperationTailorsRequestBodySchemas(t *testing.T) {
 			},
 			omittedProperties: []string{"name"},
 		},
+		{
+			name:        "partial folder update",
+			operationID: "FolderService_UpdateFolder",
+			arguments: map[string]any{
+				"user":   "users/demo",
+				"folder": "users/demo/folders/abc123",
+				"body":   map[string]any{"pinned": true},
+			},
+			omittedProperties: []string{"name"},
+		},
 	}
 
 	for _, test := range tests {
@@ -293,6 +303,81 @@ func TestBuildToolFromOperationExposesListMemoViews(t *testing.T) {
 	properties, ok := input["properties"].(map[string]any)
 	require.True(t, ok)
 	require.Contains(t, properties, "user")
+}
+
+func TestBuildToolFromOperationExposesFolderTools(t *testing.T) {
+	spec, err := loadOpenAPISpec("../../../proto/gen/openapi.yaml")
+	require.NoError(t, err)
+	registry, err := buildOperationRegistry(spec)
+	require.NoError(t, err)
+
+	tests := []struct {
+		operationID string
+		name        string
+		readOnly    bool
+		destructive bool
+		idempotent  bool
+	}{
+		{operationID: "FolderService_ListFolders", name: "folder_list_folders", readOnly: true, idempotent: true},
+		{operationID: "FolderService_GetFolder", name: "folder_get_folder", readOnly: true, idempotent: true},
+		{operationID: "FolderService_CreateFolder", name: "folder_create_folder"},
+		{operationID: "FolderService_UpdateFolder", name: "folder_update_folder", destructive: true},
+		{operationID: "FolderService_DeleteFolder", name: "folder_delete_folder", destructive: true, idempotent: true},
+	}
+	for _, test := range tests {
+		t.Run(test.operationID, func(t *testing.T) {
+			tool, operation := buildToolFromOperation(registry[test.operationID])
+			require.Equal(t, test.name, tool.Name)
+			require.Equal(t, test.operationID, operation.OperationID)
+			require.Equal(t, test.readOnly, tool.Annotations.ReadOnlyHint)
+			require.Equal(t, test.destructive, *tool.Annotations.DestructiveHint)
+			require.Equal(t, test.idempotent, tool.Annotations.IdempotentHint)
+
+			inputBytes, err := json.Marshal(tool.InputSchema)
+			require.NoError(t, err)
+			require.NotContains(t, string(inputBytes), "#/components/schemas")
+		})
+	}
+}
+
+func TestBuildToolFromOperationTailorsFolderBodySchemas(t *testing.T) {
+	spec, err := loadOpenAPISpec("../../../proto/gen/openapi.yaml")
+	require.NoError(t, err)
+	registry, err := buildOperationRegistry(spec)
+	require.NoError(t, err)
+
+	create, _ := buildToolFromOperation(registry["FolderService_CreateFolder"])
+	createInput, ok := create.InputSchema.(jsonSchema)
+	require.True(t, ok)
+	require.Contains(t, createInput["required"], "body")
+	createProperties := schemaProperties(createInput["properties"])
+	createBody := schemaProperties(createProperties["body"])
+	require.Contains(t, createBody["required"], "title")
+	require.NoError(t, validateToolArguments(createInput, map[string]any{
+		"user": "users/demo",
+		"body": map[string]any{"title": "Research"},
+	}))
+	// The Folder schema marks only title as required; creating without it must
+	// be rejected at the schema instead of failing later at the API.
+	require.Error(t, validateToolArguments(createInput, map[string]any{
+		"user": "users/demo",
+		"body": map[string]any{"pinned": true},
+	}))
+
+	update, _ := buildToolFromOperation(registry["FolderService_UpdateFolder"])
+	updateInput, ok := update.InputSchema.(jsonSchema)
+	require.True(t, ok)
+	// An empty body carries no fields to update; reject it at the schema.
+	require.Error(t, validateToolArguments(updateInput, map[string]any{
+		"user":   "users/demo",
+		"folder": "users/demo/folders/abc123",
+		"body":   map[string]any{},
+	}))
+	require.NoError(t, validateToolArguments(updateInput, map[string]any{
+		"user":   "users/demo",
+		"folder": "users/demo/folders/abc123",
+		"body":   map[string]any{"pinned": true},
+	}))
 }
 
 func TestBuildToolFromOperationMarksSetOperationsIdempotent(t *testing.T) {
