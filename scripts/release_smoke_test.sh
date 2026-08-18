@@ -12,10 +12,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 candidate_image="${MEMOS_SMOKE_CANDIDATE_IMAGE:-}"
 previous_image="${MEMOS_SMOKE_PREVIOUS_IMAGE:-}"
-# Registry hosting the historical release images the upgrade test seeds from.
-# Defaults to the upstream GHCR mirror; override for a registry carrying the
-# same release tags (e.g. a fork mirror).
-previous_repo="${MEMOS_PREVIOUS_IMAGE_REPO:-ghcr.io/usememos/memos}"
+# Explicit registry override for the upgrade-seed image. When unset, the
+# previous release image is resolved by trying, in order: this repository's
+# own GHCR image, then the upstream GHCR mirror.
+previous_repo="${MEMOS_PREVIOUS_IMAGE_REPO:-}"
 keep_resources="${MEMOS_SMOKE_KEEP_RESOURCES:-0}"
 
 usage() {
@@ -36,7 +36,9 @@ Environment equivalents:
   MEMOS_SMOKE_CANDIDATE_IMAGE
   MEMOS_SMOKE_PREVIOUS_IMAGE
   MEMOS_SMOKE_KEEP_RESOURCES=1
-  MEMOS_PREVIOUS_IMAGE_REPO (default ghcr.io/usememos/memos)
+  MEMOS_PREVIOUS_IMAGE_REPO (force one registry for the detected tag;
+                            default: this repo's GHCR image, then the
+                            upstream mirror ghcr.io/usememos/memos)
 
 Examples:
   ./scripts/release_smoke_test.sh
@@ -146,7 +148,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-detect_previous_image() {
+detect_previous_tag() {
   local head_sha tag tag_sha
   head_sha="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 
@@ -160,7 +162,7 @@ detect_previous_image() {
       continue
     fi
     if git -C "$REPO_ROOT" merge-base --is-ancestor "$tag" HEAD; then
-      printf '%s:%s\n' "$previous_repo" "${tag#v}"
+      printf '%s\n' "${tag#v}"
       return
     fi
   done < <(git -C "$REPO_ROOT" tag --list 'v[0-9]*' --sort=-version:refname)
@@ -168,6 +170,43 @@ detect_previous_image() {
   # No previous release tag reachable from HEAD (e.g. the first release on a
   # fork that did not inherit tags). Signal the caller to skip the upgrade
   # tier rather than failing the release.
+  return 1
+}
+
+image_available() {
+  docker manifest inspect "$1" >/dev/null 2>&1
+}
+
+# Resolve the previous-release image for a detected tag. With an explicit
+# MEMOS_PREVIOUS_IMAGE_REPO the tag must exist there. Otherwise try this
+# repository's own GHCR image first (fork releases) and fall back to the
+# upstream mirror (inherited history). Returns 1 when no registry carries the
+# tag, letting the caller skip the upgrade tier.
+resolve_previous_image() {
+  local tag="$1" repo candidate
+
+  if [[ -n "$previous_repo" ]]; then
+    candidate="${previous_repo}:${tag}"
+    image_available "$candidate" || return 1
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+
+  if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+    repo="ghcr.io/${GITHUB_REPOSITORY,,}"
+    candidate="${repo}:${tag}"
+    if image_available "$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  fi
+
+  candidate="ghcr.io/usememos/memos:${tag}"
+  if image_available "$candidate"; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+
   return 1
 }
 
@@ -327,7 +366,12 @@ fi
 
 run_upgrade_smoke=1
 if [[ -z "$previous_image" ]]; then
-  if ! previous_image="$(detect_previous_image)"; then
+  if previous_tag="$(detect_previous_tag)"; then
+    if ! previous_image="$(resolve_previous_image "$previous_tag")"; then
+      log "No registry carries an image for previous tag v${previous_tag}; skipping upgrade smoke test"
+      run_upgrade_smoke=0
+    fi
+  else
     run_upgrade_smoke=0
   fi
 fi
